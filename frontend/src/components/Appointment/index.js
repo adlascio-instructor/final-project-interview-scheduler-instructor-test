@@ -11,6 +11,7 @@ const Appointment = (props) => {
   const [add, setAdd] = React.useState(false);
   const [edit, setEdit] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const { socket } = props;
   function save(name, interviewer) {
     const interview = {
       student: name,
@@ -35,7 +36,7 @@ const Appointment = (props) => {
             message={"Are you sure you want to delete?"}
             onCancel={() => setIsDeleting(false)}
             onConfirm={() => {
-              props.cancelInterview(props.id);
+              socket.emit("cancel_interview", props.id);
               setIsDeleting(false);
             }}
           />

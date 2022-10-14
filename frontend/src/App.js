@@ -1,29 +1,61 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import io from "socket.io-client";
 
 import "./App.scss";
 
 import DayList from "./components/DayList";
 import Appointment from "./components/Appointment";
-import daysData from "./components/__mocks__/days.json";
-import appointmentsData from "./components/__mocks__/appointments.json";
+
+const socket = io.connect("http://localhost:8080");
 
 export default function Application() {
   const [day, setDay] = useState("Monday");
-  const [days, setDays] = useState(daysData);
-  const [appointments, setAppointments] = useState(appointmentsData);
+  const [days, setDays] = useState({});
+  const [appointments, setAppointments] = useState({});
+  useEffect(() => {
+    socket.on("cancel_interview", (appointment_id) => {
+      cancelInterview(appointment_id);
+    });
+
+    socket.on("book_interview", (data) => {
+      const { appointment_id, interview } = data;
+      if (appointments[appointment_id]) {
+        bookInterview(appointment_id, interview);
+      }
+    });
+
+    return () => {
+      socket.off("cancel_interview");
+      socket.off("book_interview");
+    };
+  }, [day, appointments]);
+  useEffect(() => {
+    axios
+      .get("/days")
+      .then((res) => res.data)
+      .then((days) => {
+        setDays(days);
+      });
+  }, []);
+  useEffect(() => {
+    axios
+      .get(`/schedule/${day}`)
+      .then((res) => res.data)
+      .then((appointments) => setAppointments(appointments));
+  }, [day]);
   function bookInterview(id, interview) {
-    console.log(id, interview);
     const isEdit = appointments[id].interview;
     setAppointments((prev) => {
       const appointment = {
         ...prev[id],
         interview: { ...interview },
       };
-      const appointments = {
+      const updatedAppointments = {
         ...prev,
         [id]: appointment,
       };
-      return appointments;
+      return updatedAppointments;
     });
     if (!isEdit) {
       setDays((prev) => {
@@ -45,22 +77,22 @@ export default function Application() {
         ...prev[id],
         interview: null,
       };
-      const appointments = {
+      const updatedAppointments = {
         ...prev,
         [id]: updatedAppointment,
       };
-      return appointments;
+      return updatedAppointments;
     });
     setDays((prev) => {
       const updatedDay = {
         ...prev[day],
         spots: prev[day].spots + 1,
       };
-      const days = {
+      const updatedDays = {
         ...prev,
         [day]: updatedDay,
       };
-      return days;
+      return updatedDays;
     });
   }
   return (
@@ -81,10 +113,15 @@ export default function Application() {
           <Appointment
             key={appointment.id}
             {...appointment}
-            bookInterview={(interview) =>
-              bookInterview(appointment.id, interview)
-            }
+            bookInterview={(interview) => {
+              socket.emit("book_interview", {
+                appointment_id: appointment.id,
+                interview,
+              });
+              // bookInterview(appointment.id, interview);
+            }}
             cancelInterview={cancelInterview}
+            socket={socket}
           />
         ))}
         <Appointment key="last" time="5pm" />
