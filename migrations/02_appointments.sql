@@ -1,0 +1,5 @@
+CREATE TABLE appointments (
+    id SERIAL PRIMARY KEY,
+    time VARCHAR(4) NOT NULL,
+    day_id INTEGER NOT NULL REFERENCES days(id) ON DELETE CASCADE
+)
